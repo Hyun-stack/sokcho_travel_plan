@@ -12,8 +12,8 @@
 <style>
   :root {
     --primary-color: #2563eb;
-    --bg-glass: rgba(255, 255, 255, 0.85);
-    --border-glass: rgba(255, 255, 255, 0.6);
+    --bg-glass: rgba(255, 255, 255, 0.75);
+    --border-glass: rgba(255, 255, 255, 0.5);
     --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.15);
     --radius-lg: 16px;
     --radius-sm: 8px;
@@ -28,65 +28,69 @@
     position: absolute; top: 12px; left: 12px; right: 12px; z-index: 1000;
     background: var(--bg-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border-glass); padding: 10px 14px; border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md); display: flex; justify-content: space-between; align-items: center;
+    box-shadow: var(--shadow-md); pointer-events: auto;
   }
   .title-box h1 { margin: 0; font-size: 15px; font-weight: 700; color: #0f172a; }
-  .title-box p { margin: 2px 0 0; font-size: 11px; color: #64748b; }
+  .title-box p { margin: 2px 0 0; font-size: 11px; color: #475569; }
 
-  /* 범례 팝업버튼 & 레이어 */
-  .legend-toggle {
-    background: var(--primary-color); color: white; border: none; padding: 6px 10px;
-    border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; flex-shrink: 0;
-  }
+  /* 좌측 하단 범례 카드 */
   .legend {
-    display: none; position: absolute; top: 65px; right: 12px; z-index: 1000;
+    position: absolute; bottom: 60px; left: 12px; z-index: 999;
     background: var(--bg-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--border-glass); padding: 12px; border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md); font-size: 11px; width: 200px;
+    border: 1px solid var(--border-glass); padding: 10px 12px; border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md); font-size: 11px; width: auto; max-width: 180px;
+    pointer-events: auto;
   }
-  .legend.active { display: block; }
-  .legend-title { font-weight: 700; margin-bottom: 6px; color: #334155; }
-  .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
+  .legend-title { font-weight: 700; margin-bottom: 6px; color: #334155; font-size: 11px; }
+  .legend-item { display: flex; align-items: center; margin-bottom: 4px; font-weight: 500; font-size: 10.5px; }
+  .legend-item:last-child { margin-bottom: 0; }
   .legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
 
   /* 모바일 바텀시트 패널 */
   #panel {
     position: absolute; bottom: 0; left: 0; right: 0; z-index: 1000;
-    background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     border-top-left-radius: 20px; border-top-right-radius: 20px;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.1); 
+    border-top: 1px solid var(--border-glass);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.12); 
     display: flex; flex-direction: column;
-    transition: transform 0.3s cubic-bezier(0.1, 1, 0.1, 1);
-    max-height: 50vh;
+    height: 50vh;
+    transform: translateY(calc(100% - 48px));
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    will-change: transform;
   }
-  #panel.collapsed {
-    transform: translateY(calc(100% - 46px));
-  }
+  
+  /* 드래그 및 토글 핸들 영역 */
   #panel-drag-handle {
-    width: 100%; padding: 8px 0 4px; display: flex; justify-content: center; cursor: pointer;
+    width: 100%; padding: 8px 0 2px; display: flex; flex-direction: column; align-items: center; cursor: pointer; touch-action: none;
   }
-  .drag-bar { width: 36px; height: 4px; background: #cbd5e1; border-radius: 2px; }
+  .arrow-icon {
+    font-size: 12px; color: #64748b; transition: transform 0.3s ease; margin-bottom: 2px;
+  }
+  #panel.expanded .arrow-icon {
+    transform: rotate(180deg);
+  }
 
   #panel-head {
-    padding: 0 16px 10px; display: flex; justify-content: space-between; align-items: center;
+    padding: 0 16px 8px; display: flex; justify-content: space-between; align-items: center; width: 100%;
   }
   #panel-head .title { font-weight: 700; font-size: 14px; color: #0f172a; }
   #panel-head .count { font-size: 12px; color: var(--primary-color); background: #eff6ff; padding: 2px 8px; border-radius: 12px; font-weight: 600; }
   
   .filter-bar { 
-    padding: 6px 16px; background: #f8fafc; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9;
+    padding: 6px 16px; background: rgba(248, 250, 252, 0.8); border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9;
     display: flex; align-items: center; 
   }
   .filter-bar label { font-size: 12px; color: #334155; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; }
   .filter-bar input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary-color); }
 
   #panel-list { 
-    overflow-y: auto; padding: 8px 12px; flex: 1; max-height: calc(50vh - 90px);
+    overflow-y: auto; padding: 8px 12px; flex: 1; -webkit-overflow-scrolling: touch;
   }
   .p-item {
     padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 6px;
     display: flex; justify-content: space-between; align-items: center;
-    background: #ffffff; border: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.9); border: 1px solid #e2e8f0;
   }
   .p-item .nm { font-size: 13px; font-weight: 600; color: #1e293b; flex: 1; }
   .p-item .star { font-size: 18px; padding: 4px; min-width: 30px; text-align: center; }
@@ -108,15 +112,12 @@
     border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; color: #334155;
   }
 
-  /* 데스크톱 대응 반응형 추가 */
+  /* 데스크톱 화면 스타일 */
   @media (min-width: 769px) {
-    .title-box { max-width: 320px; right: auto; }
-    .legend { display: block !important; top: auto; bottom: 20px; left: 20px; right: auto; }
-    .legend-toggle { display: none; }
-    #panel { top: 80px; right: 20px; left: auto; bottom: auto; width: 300px; max-height: 80vh; border-radius: var(--radius-lg); }
-    #panel.collapsed { transform: none; }
+    .title-box { max-width: 320px; }
+    .legend { bottom: 20px; left: 20px; max-width: 220px; }
+    #panel { top: 80px; right: 20px; left: auto; bottom: auto; width: 300px; height: calc(100vh - 100px); border-radius: var(--radius-lg); transform: none !important; }
     #panel-drag-handle { display: none; }
-    #panel-list { max-height: calc(80vh - 90px); }
   }
 </style>
 </head>
@@ -125,15 +126,12 @@
 
 <!-- 상단 제목 -->
 <div class="title-box">
-  <div>
-    <h1>🗺️ 속초 스마트 여행 지도</h1>
-    <p>권역별 관광명소 일정 가이드</p>
-  </div>
-  <button class="legend-toggle" onclick="toggleLegend()">범례</button>
+  <h1>🗺️ 속초 스마트 여행 지도</h1>
+  <p>권역별 관광명소 일정 가이드</p>
 </div>
 
-<!-- 범례 영역 -->
-<div class="legend" id="legend">
+<!-- 좌측 하단 범례 카드 (투명도 적용) -->
+<div class="legend">
   <div class="legend-title">권역별 안내</div>
   <div class="legend-item"><span class="dot" style="background:#185FA5;"></span>청호동·속초해변</div>
   <div class="legend-item"><span class="dot" style="background:#0E8A6D;"></span>청초호</div>
@@ -142,14 +140,14 @@
   <div class="legend-item"><span class="dot" style="background:#854F0B;"></span>조양동</div>
 </div>
 
-<!-- 하단 슬라이드 패널 -->
-<div id="panel" class="collapsed">
-  <div id="panel-drag-handle" onclick="togglePanel()">
-    <div class="drag-bar"></div>
-  </div>
-  <div id="panel-head" onclick="togglePanel()">
-    <span class="title">화면 내 장소 목록</span>
-    <span class="count" id="p-count">0</span>
+<!-- 하단 드래그 슬라이드 패널 -->
+<div id="panel">
+  <div id="panel-drag-handle">
+    <div class="arrow-icon" id="arrow-icon">▲</div>
+    <div id="panel-head">
+      <span class="title">화면 내 장소 목록</span>
+      <span class="count" id="p-count">0</span>
+    </div>
   </div>
   <div class="filter-bar">
     <label><input type="checkbox" id="fav-only"> ⭐ 즐겨찾기한 장소만 보기</label>
@@ -334,20 +332,72 @@ window.focusPlace = function(name){
   const m = markerByName[name];
   map.setView(m.getLatLng(), Math.max(map.getZoom(), 15));
   markers.zoomToShowLayer(m, () => m.openPopup());
-  // 모바일인 경우 지도를 잘 보이게 패널을 닫아줍니다.
-  if(window.innerWidth <= 768) {
-    document.getElementById('panel').classList.add('collapsed');
-  }
+  collapsePanel();
 };
 
-function togglePanel() {
-  document.getElementById('panel').classList.toggle('collapsed');
+/* --- 모바일 실제 드래그 및 터치 슬라이드 구현 --- */
+const panel = document.getElementById('panel');
+const handle = document.getElementById('panel-drag-handle');
+let startY = 0, currentY = 0, initialTranslateY = 0;
+let isDragging = false;
+let isExpanded = false;
+
+function expandPanel() {
+  panel.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+  panel.style.transform = 'translateY(0)';
+  panel.classList.add('expanded');
+  isExpanded = true;
 }
 
-function toggleLegend() {
-  const el = document.getElementById('legend');
-  el.classList.toggle('active');
+function collapsePanel() {
+  if (window.innerWidth > 768) return;
+  panel.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+  panel.style.transform = 'translateY(calc(100% - 48px))';
+  panel.classList.remove('expanded');
+  isExpanded = false;
 }
+
+handle.addEventListener('click', (e) => {
+  if (isExpanded) collapsePanel();
+  else expandPanel();
+});
+
+handle.addEventListener('touchstart', (e) => {
+  startY = e.touches[0].clientY;
+  const transformVal = window.getComputedStyle(panel).transform;
+  if (transformVal !== 'none') {
+    const matrix = new DOMMatrix(transformVal);
+    initialTranslateY = matrix.m42;
+  } else {
+    initialTranslateY = 0;
+  }
+  isDragging = true;
+  panel.style.transition = 'none';
+}, { passive: true });
+
+window.addEventListener('touchmove', (e) => {
+  if (!isDragging) return;
+  currentY = e.touches[0].clientY;
+  const deltaY = currentY - startY;
+  let newY = initialTranslateY + deltaY;
+  const maxTranslate = panel.offsetHeight - 48;
+  if (newY < 0) newY = 0;
+  if (newY > maxTranslate) newY = maxTranslate;
+  panel.style.transform = `translateY(${newY}px)`;
+}, { passive: true });
+
+window.addEventListener('touchend', () => {
+  if (!isDragging) return;
+  isDragging = false;
+  const maxTranslate = panel.offsetHeight - 48;
+  const currentTransform = new DOMMatrix(window.getComputedStyle(panel).transform).m42;
+  
+  if (currentTransform < maxTranslate / 2) {
+    expandPanel();
+  } else {
+    collapsePanel();
+  }
+});
 
 map.on('moveend zoomend', refreshList);
 favOnly.addEventListener('change', refreshList);
