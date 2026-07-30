@@ -39,7 +39,7 @@
     background: var(--bg-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border-glass); padding: 10px 12px; border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md); font-size: 11px; width: auto; max-width: 200px;
-    pointer-events: auto;
+    pointer-events: auto; transition: bottom 0.3s ease;
   }
   .legend-title { font-weight: 700; margin-bottom: 6px; color: #334155; font-size: 11px; }
   .legend-item { display: flex; align-items: center; margin-bottom: 4px; font-weight: 500; font-size: 10.5px; }
@@ -139,7 +139,7 @@
 </div>
 
 <!-- 좌측 하단 범례 카드 -->
-<div class="legend">
+<div class="legend" id="legend">
   <div class="legend-title">권역별 안내</div>
   <div class="legend-item"><span class="dot" style="background:#185FA5;"></span>청호동·속초해변</div>
   <div class="legend-item"><span class="dot" style="background:#0E8A6D;"></span>청초호</div>
@@ -217,7 +217,7 @@ const places = [
 ["속초거북이(교동 인근)",38.186341,128.604275,3,"이자카야·술집"],
 ["다다하다 속초교동점",38.194840,128.573642,3,"이자카야·술집"],
 ["속초동경",38.202180,128.584637,3,"이자카야·술집"],
-["트리거(교동)",38.195720,128.579917,3,"카페&펍"],
+["트리거(교동)",38.195720,128.59917,3,"카페&펍"],
 ["노렌(중앙시장 인근)",38.204249,128.591093,3,"이색카페"],
 ["옥란푸딩",38.186482,128.603617,3,"이색간식"],
 ["히모노야(중앙동)",38.203757,128.590755,3,"이색맛집"],
@@ -299,6 +299,8 @@ map.fitBounds(markers.getBounds(), { padding: [30,30] });
 const listEl = document.getElementById('panel-list');
 const countEl = document.getElementById('p-count');
 const favOnly = document.getElementById('fav-only');
+const panel = document.getElementById('panel');
+const legend = document.getElementById('legend');
 
 function refreshAll(){
   places.forEach(([name,,,zone,category]) => {
@@ -320,11 +322,34 @@ function refreshAll(){
   refreshList();
 }
 
-/* 화면(현재 지도 Bounds)에 보이는 장소만 실시간 계산하여 출력 */
-function refreshList(){
-  map.invalidateSize(); // 지도 뷰포트 크기 갱신
+/* 실제로 눈에 보이는 지도의 영역(패널 가림막 높이 제외)을 계산 */
+function getVisibleBounds() {
   const bounds = map.getBounds();
-  let visible = places.filter(([name,lat,lng]) => bounds.contains([lat,lng]));
+  if (window.innerWidth > 768) return bounds; // PC에서는 그대로 반환
+
+  // 패널이 화면을 가리는 높이 계산
+  const panelRect = panel.getBoundingClientRect();
+  const mapContainer = map.getContainer();
+  const mapHeight = mapContainer.clientHeight;
+  
+  // 가려진 하단 높이 (px)
+  const coveredHeight = Math.max(0, mapHeight - panelRect.top);
+  
+  if (coveredHeight <= 0) return bounds;
+
+  // 전체 픽셀에서 가려지지 않은 화면 영역의 최하단 좌표 계산
+  const southWestPoint = L.point(0, mapHeight - coveredHeight);
+  const southWestLatLng = map.containerPointToLatLng(southWestPoint);
+
+  // 눈에 실제로 보이는 범위(Visual Bounds) 생성
+  return L.latLngBounds(southWestLatLng, bounds.getNorthEast());
+}
+
+function refreshList(){
+  map.invalidateSize();
+  const visibleBounds = getVisibleBounds(); // 가려진 영역을 뺀 실제 영역 계산
+  
+  let visible = places.filter(([name,lat,lng]) => visibleBounds.contains([lat,lng]));
   if (favOnly.checked) visible = visible.filter(([name]) => isFav(name));
   
   countEl.textContent = visible.length;
@@ -344,8 +369,7 @@ window.focusPlace = function(name){
   collapsePanel();
 };
 
-/* --- 모바일 터치 슬라이드 동작 및 상태에 따른 실시간 목록 갱신 --- */
-const panel = document.getElementById('panel');
+/* --- 모바일 터치 및 애니메이션 처리 --- */
 const handle = document.getElementById('panel-drag-handle');
 let startY = 0, currentY = 0, initialTranslateY = 0;
 let isDragging = false;
@@ -355,16 +379,18 @@ function expandPanel() {
   if (window.innerWidth > 768) return;
   panel.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
   panel.style.transform = 'translateY(0)';
+  legend.style.bottom = 'calc(50vh + 12px)'; // 범례 위치 조정
   isExpanded = true;
-  setTimeout(refreshList, 300); // 슬라이드가 완료된 후 지도 재계산 및 목록 갱신
+  setTimeout(refreshList, 305);
 }
 
 function collapsePanel() {
   if (window.innerWidth > 768) return;
   panel.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
   panel.style.transform = 'translateY(calc(100% - 48px))';
+  legend.style.bottom = '60px'; // 범례 복구
   isExpanded = false;
-  setTimeout(refreshList, 300); // 슬라이드가 접힌 후 지도 재계산 및 목록 갱신
+  setTimeout(refreshList, 305);
 }
 
 handle.addEventListener('click', () => {
@@ -378,8 +404,7 @@ handle.addEventListener('touchstart', (e) => {
   startY = e.touches[0].clientY;
   const transformVal = window.getComputedStyle(panel).transform;
   if (transformVal !== 'none') {
-    const matrix = new DOMMatrix(transformVal);
-    initialTranslateY = matrix.m42;
+    initialTranslateY = new DOMMatrix(transformVal).m42;
   } else {
     initialTranslateY = 0;
   }
@@ -396,6 +421,8 @@ window.addEventListener('touchmove', (e) => {
   if (newY < 0) newY = 0;
   if (newY > maxTranslate) newY = maxTranslate;
   panel.style.transform = `translateY(${newY}px)`;
+  
+  refreshList(); // 드래그 중에도 목록 실시간 계산
 }, { passive: true });
 
 window.addEventListener('touchend', () => {
