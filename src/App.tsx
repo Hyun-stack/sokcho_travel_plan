@@ -8,7 +8,7 @@ import { useVisited } from './hooks/useVisited'
 import { useRoute } from './hooks/useRoute'
 import rawData from './data/sokcho.json'
 import { DestinationData, Place } from './types'
-import { PlaceFilters, ViewMode } from './filters'
+import { matchesFilters, PlaceFilters, ViewMode } from './filters'
 import { assignZoneColors } from './zoneColors'
 
 const rawDestination = rawData as unknown as Omit<DestinationData, 'zones'> & {
@@ -33,6 +33,7 @@ export default function App() {
   const [hiddenZones, setHiddenZones] = useState<number[]>([])
   const [routeMode, setRouteMode] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [mapOnly, setMapOnly] = useState(true)
   const [visiblePlaces, setVisiblePlaces] = useState<Place[]>([])
   const mapRef = useRef<MapViewHandle>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -41,6 +42,13 @@ export default function App() {
     () => ({ viewMode, selectedZones, selectedCategories, hiddenZones }),
     [viewMode, selectedZones, selectedCategories, hiddenZones],
   )
+
+  const filteredPlaces = useMemo(
+    () => destination.places.filter((p) => matchesFilters(p, filters, isFav, isInRoute)),
+    [filters, isFav, isInRoute],
+  )
+
+  const panelPlaces = mapOnly ? visiblePlaces : filteredPlaces
 
   function handleToggleZoneVisible(zoneId: number) {
     setHiddenZones((prev) =>
@@ -87,6 +95,8 @@ export default function App() {
         categories={categories}
         selectedCategories={selectedCategories}
         onSelectedCategoriesChange={setSelectedCategories}
+        mapOnly={mapOnly}
+        onMapOnlyChange={setMapOnly}
       />
       <Legend
         zones={destination.zones}
@@ -96,7 +106,7 @@ export default function App() {
       />
       <Panel
         ref={panelRef}
-        visiblePlaces={visiblePlaces}
+        visiblePlaces={panelPlaces}
         zones={destination.zones}
         isFav={isFav}
         onToggleFav={toggleFav}
