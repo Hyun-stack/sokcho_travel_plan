@@ -1,8 +1,17 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet'
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Polyline,
+  Popup,
+  useMap,
+  useMapEvents,
+} from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import { DestinationData, Place } from '../types'
+import { PlaceFilters, matchesFilters } from '../filters'
 
 export interface MapViewHandle {
   focusPlace: (id: string) => void
@@ -12,20 +21,41 @@ interface MapViewProps {
   data: DestinationData
   isFav: (id: string) => boolean
   onToggleFav: (id: string) => void
-  favOnly: boolean
+  isVisited: (id: string) => boolean
+  onToggleVisited: (id: string) => void
+  filters: PlaceFilters
+  routeMode: boolean
+  routeOrder: string[]
+  routeIndex: (id: string) => number
+  onToggleRoute: (id: string) => void
   panelExpanded: boolean
   onVisibleChange: (places: Place[]) => void
   panelRef: React.RefObject<HTMLDivElement>
 }
 
-function makeIcon(color: string, fav: boolean) {
+interface IconState {
+  color: string
+  fav: boolean
+  dimmed: boolean
+  visited: boolean
+  routeIndex: number
+}
+
+function makeIcon({ color, fav, dimmed, visited, routeIndex }: IconState) {
+  const size = fav ? 24 : 18
+  const inner = fav
+    ? `<div class="mk-fav">⭐</div>`
+    : `<div class="mk-dot" style="background:${color}"></div>`
+  const badge = routeIndex > 0 ? `<div class="mk-seq">${routeIndex}</div>` : ''
+  const check = visited ? `<div class="mk-check">✓</div>` : ''
+  const classes = ['mk-wrap', dimmed ? 'mk-dim' : '', visited ? 'mk-visited' : '']
+    .filter(Boolean)
+    .join(' ')
   return L.divIcon({
     className: '',
-    html: fav
-      ? `<div style="width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid #f59e0b;box-shadow:0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:14px;">⭐</div>`
-      : `<div style="width:18px;height:18px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`,
-    iconSize: fav ? [24, 24] : [18, 18],
-    iconAnchor: fav ? [12, 12] : [9, 9],
+    html: `<div class="${classes}" style="width:${size}px;height:${size}px">${inner}${badge}${check}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   })
 }
 
@@ -46,14 +76,14 @@ function getVisibleBounds(map: L.Map, panel: HTMLDivElement | null): L.LatLngBou
 
 function VisibilityTracker({
   data,
-  favOnly,
+  filters,
   isFav,
   panelExpanded,
   onVisibleChange,
   panelRef,
 }: {
   data: DestinationData
-  favOnly: boolean
+  filters: PlaceFilters
   isFav: (id: string) => boolean
   panelExpanded: boolean
   onVisibleChange: (places: Place[]) => void
@@ -71,13 +101,14 @@ function VisibilityTracker({
     const timeoutId = setTimeout(recompute, panelExpanded ? 305 : 0)
     return () => clearTimeout(timeoutId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [favOnly, panelExpanded])
+  }, [filters, isFav, panelExpanded])
 
   function recompute() {
     map.invalidateSize()
     const bounds = getVisibleBounds(map, panelRef.current)
-    let visible = data.places.filter((p) => bounds.contains([p.lat, p.lng]))
-    if (favOnly) visible = visible.filter((p) => isFav(p.id))
+    const visible = data.places.filter(
+      (p) => bounds.contains([p.lat, p.lng]) && matchesFilters(p, filters, isFav),
+    )
     onVisibleChange(visible)
   }
 
@@ -90,21 +121,50 @@ function VisibilityTracker({
 }
 
 const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
-  { data, isFav, onToggleFav, favOnly, panelExpanded, onVisibleChange, panelRef },
+  {
+    data,
+    isFav,
+    onToggleFav,
+    isVisited,
+    onToggleVisited,
+    filters,
+    routeMode,
+    routeOrder,
+    routeIndex,
+    onToggleRoute,
+    panelExpanded,
+    onVisibleChange,
+    panelRef,
+  },
   ref,
 ) {
   const mapRef = useRef<L.Map | null>(null)
   const markerRefs = useRef<Record<string, L.Marker | null>>({})
+  const iconCache = useRef(new Map<string, L.DivIcon>())
 
-  const zoneIcons = useMemo(() => {
-    const icons = new Map<string, L.DivIcon>()
-    Object.entries(data.zones).forEach(([id, zone]) => {
-      icons.set(id, makeIcon(zone.color, false))
-    })
-    return icons
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.zones])
-  const favIcon = useMemo(() => makeIcon('', true), [])
+  function getIcon(state: IconState) {
+    const key = `${state.color}|${state.fav}|${state.dimmed}|${state.visited}|${state.routeIndex}`
+    const cached = iconCache.current.get(key)
+    if (cached) return cached
+    const icon = makeIcon(state)
+    iconCache.current.set(key, icon)
+    return icon
+  }
+
+  const placeById = useMemo(() => {
+    const map = new Map<string, Place>()
+    data.places.forEach((p) => map.set(p.id, p))
+    return map
+  }, [data.places])
+
+  const routeLine = useMemo<[number, number][]>(
+    () =>
+      routeOrder
+        .map((id) => placeById.get(id))
+        .filter((p): p is Place => Boolean(p))
+        .map((p) => [p.lat, p.lng] as [number, number]),
+    [routeOrder, placeById],
+  )
 
   useImperativeHandle(ref, () => ({
     focusPlace(id: string) {
@@ -130,6 +190,12 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         attribution="&copy; OpenStreetMap"
         maxZoom={19}
       />
+      {routeLine.length >= 2 && (
+        <Polyline
+          positions={routeLine}
+          pathOptions={{ color: '#334155', weight: 3, dashArray: '8 6', opacity: 0.9 }}
+        />
+      )}
       <MarkerClusterGroup
         maxClusterRadius={50}
         iconCreateFunction={(cluster: any) => {
@@ -155,43 +221,63 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           const zoneKey = String(place.zone)
           const zone = data.zones[zoneKey]
           const fav = isFav(place.id)
+          const visited = isVisited(place.id)
+          const idx = routeIndex(place.id)
+          const dimmed = !matchesFilters(place, filters, isFav)
           return (
             <Marker
               key={place.id}
               position={[place.lat, place.lng]}
-              icon={fav ? favIcon : zoneIcons.get(zoneKey) ?? makeIcon('#555', false)}
-              zIndexOffset={fav ? 1000 : 0}
+              icon={getIcon({
+                color: zone?.color || '#555',
+                fav,
+                dimmed,
+                visited,
+                routeIndex: idx,
+              })}
+              zIndexOffset={idx > 0 ? 2000 : fav ? 1000 : 0}
+              eventHandlers={
+                routeMode ? { click: () => onToggleRoute(place.id) } : undefined
+              }
               ref={(m) => {
                 if (m) (m as unknown as { zone: number }).zone = place.zone
                 markerRefs.current[place.id] = m
               }}
             >
-              <Popup>
-                <div className="place-popup">
-                  <b>{place.name}</b>
-                  <div className="tags">
-                    <span
-                      className="badge"
-                      style={{ background: `${zone?.color}20`, color: zone?.color }}
-                    >
-                      {zone?.name}
-                    </span>
-                    <span className="badge" style={{ background: '#f1f5f9', color: '#475569' }}>
-                      {place.category}
-                    </span>
+              {!routeMode && (
+                <Popup>
+                  <div className="place-popup">
+                    <b>{place.name}</b>
+                    <div className="tags">
+                      <span
+                        className="badge"
+                        style={{ background: `${zone?.color}20`, color: zone?.color }}
+                      >
+                        {zone?.name}
+                      </span>
+                      <span className="badge" style={{ background: '#f1f5f9', color: '#475569' }}>
+                        {place.category}
+                      </span>
+                    </div>
+                    <button className="fav-btn" onClick={() => onToggleFav(place.id)}>
+                      {fav ? '⭐ 즐겨찾기 해제' : '☆ 즐겨찾기 추가'}
+                    </button>
+                    <button className="fav-btn" onClick={() => onToggleVisited(place.id)}>
+                      {visited ? '✓ 방문 완료 해제' : '□ 방문 완료'}
+                    </button>
+                    <button className="fav-btn" onClick={() => onToggleRoute(place.id)}>
+                      {idx > 0 ? `경로 ${idx} 제거` : '＋ 경로 추가'}
+                    </button>
                   </div>
-                  <button className="fav-btn" onClick={() => onToggleFav(place.id)}>
-                    {fav ? '⭐ 즐겨찾기 해제' : '☆ 즐겨찾기 추가'}
-                  </button>
-                </div>
-              </Popup>
+                </Popup>
+              )}
             </Marker>
           )
         })}
       </MarkerClusterGroup>
       <VisibilityTracker
         data={data}
-        favOnly={favOnly}
+        filters={filters}
         isFav={isFav}
         panelExpanded={panelExpanded}
         onVisibleChange={onVisibleChange}

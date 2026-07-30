@@ -1,12 +1,26 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
-import { Place } from '../types'
+import { Place, ZoneInfo } from '../types'
+import { categoryEmoji } from '../filters'
+import FilterBar from './FilterBar'
 
 interface PanelProps {
   visiblePlaces: Place[]
+  zones: Record<string, ZoneInfo>
+  categories: string[]
   favOnly: boolean
   onFavOnlyChange: (value: boolean) => void
+  selectedZones: number[]
+  onSelectedZonesChange: (zones: number[]) => void
+  selectedCategories: string[]
+  onSelectedCategoriesChange: (categories: string[]) => void
+  filterOpen: boolean
   isFav: (id: string) => boolean
   onToggleFav: (id: string) => void
+  isVisited: (id: string) => boolean
+  onToggleVisited: (id: string) => void
+  routeMode: boolean
+  routeIndex: (id: string) => number
+  onToggleRoute: (id: string) => void
   onSelectPlace: (id: string) => void
   expanded: boolean
   onExpandedChange: (expanded: boolean) => void
@@ -15,10 +29,22 @@ interface PanelProps {
 const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
   {
     visiblePlaces,
+    zones,
+    categories,
     favOnly,
     onFavOnlyChange,
+    selectedZones,
+    onSelectedZonesChange,
+    selectedCategories,
+    onSelectedCategoriesChange,
+    filterOpen,
     isFav,
     onToggleFav,
+    isVisited,
+    onToggleVisited,
+    routeMode,
+    routeIndex,
+    onToggleRoute,
     onSelectPlace,
     expanded,
     onExpandedChange,
@@ -30,6 +56,7 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
   const dragState = useRef({ startY: 0, initialTranslateY: 0, dragging: false })
   const [dragTransform, setDragTransform] = useState<number | null>(null)
   const [noTransition, setNoTransition] = useState(false)
+  const [openId, setOpenId] = useState<string | null>(null)
 
   const isDesktop = () => window.innerWidth > 768
 
@@ -75,6 +102,14 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
     onExpandedChange(!expanded)
   }
 
+  function handleItemClick(id: string) {
+    if (routeMode) {
+      onToggleRoute(id)
+      return
+    }
+    setOpenId((prev) => (prev === id ? null : id))
+  }
+
   const style: React.CSSProperties = {}
   if (!isDesktop()) {
     if (dragTransform !== null) {
@@ -99,34 +134,87 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
           <span className="count">{visiblePlaces.length}</span>
         </div>
       </div>
-      <div className="filter-bar">
-        <label>
-          <input
-            type="checkbox"
-            checked={favOnly}
-            onChange={(e) => onFavOnlyChange(e.target.checked)}
-          />
-          ⭐ 즐겨찾기한 장소만 보기
-        </label>
-      </div>
+      {routeMode && <div className="route-hint">경로 모드: 장소를 탭한 순서대로 경로에 추가됩니다.</div>}
+      {filterOpen && (
+        <FilterBar
+          zones={zones}
+          categories={categories}
+          selectedZones={selectedZones}
+          onSelectedZonesChange={onSelectedZonesChange}
+          selectedCategories={selectedCategories}
+          onSelectedCategoriesChange={onSelectedCategoriesChange}
+          favOnly={favOnly}
+          onFavOnlyChange={onFavOnlyChange}
+        />
+      )}
       <div id="panel-list">
         {visiblePlaces.length === 0 ? (
           <div className="p-empty">표시할 장소가 없습니다.</div>
         ) : (
-          visiblePlaces.map((place) => (
-            <div className="p-item" key={place.id} onClick={() => onSelectPlace(place.id)}>
-              <span className="nm">{place.name}</span>
-              <button
-                className={`star ${isFav(place.id) ? 'on' : 'off'}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onToggleFav(place.id)
-                }}
-              >
-                {isFav(place.id) ? '★' : '☆'}
-              </button>
-            </div>
-          ))
+          visiblePlaces.map((place) => {
+            const zone = zones[String(place.zone)]
+            const idx = routeIndex(place.id)
+            const open = openId === place.id
+            return (
+              <div className={`p-item ${open ? 'open' : ''}`} key={place.id}>
+                <div className="p-row" onClick={() => handleItemClick(place.id)}>
+                  {idx > 0 && <span className="p-seq">{idx}</span>}
+                  <span className={`nm ${isVisited(place.id) ? 'done' : ''}`}>{place.name}</span>
+                  <button
+                    className={`star ${isFav(place.id) ? 'on' : 'off'}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onToggleFav(place.id)
+                    }}
+                  >
+                    {isFav(place.id) ? '★' : '☆'}
+                  </button>
+                </div>
+                {open && (
+                  <div className="p-detail" onClick={(e) => e.stopPropagation()}>
+                    <div className="tags">
+                      <span
+                        className="badge"
+                        style={{ background: `${zone?.color}20`, color: zone?.color }}
+                      >
+                        {zone?.name}
+                      </span>
+                      <span className="badge cat">
+                        {categoryEmoji(place.category)} {place.category}
+                      </span>
+                    </div>
+                    <div className="coords">
+                      {place.lat.toFixed(5)}, {place.lng.toFixed(5)}
+                    </div>
+                    <label className="visited-check">
+                      <input
+                        type="checkbox"
+                        checked={isVisited(place.id)}
+                        onChange={() => onToggleVisited(place.id)}
+                      />
+                      방문 완료
+                    </label>
+                    <div className="p-detail-actions">
+                      <button
+                        type="button"
+                        className="detail-btn"
+                        onClick={() => onSelectPlace(place.id)}
+                      >
+                        지도에서 보기
+                      </button>
+                      <button
+                        type="button"
+                        className={`detail-btn ${idx > 0 ? 'on' : ''}`}
+                        onClick={() => onToggleRoute(place.id)}
+                      >
+                        {idx > 0 ? `경로 ${idx} 제거` : '경로 추가'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })
         )}
       </div>
     </div>
