@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { Place, ZoneInfo } from '../types'
 import { categoryEmoji } from '../filters'
+import { openNaverMapDirections } from '../naverMap'
 
 interface PanelProps {
   visiblePlaces: Place[]
@@ -191,6 +192,13 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
                         onClick={() => onToggleRoute(place.id)}
                       >
                         {idx > 0 ? `경로 ${idx} 제거` : '경로 추가'}
+                      </button>
+                      <button
+                        type="button"
+                        className="detail-btn naver-btn"
+                        onClick={() => openNaverMapDirections(place.name, place.lat, place.lng)}
+                      >
+                        🧭 네이버 지도
                       </button>
                     </div>
                   </div>
