@@ -25,7 +25,7 @@ export function openNaverMapDirections(name: string, lat: number, lng: number) {
     window.removeEventListener('pagehide', onHide)
     window.removeEventListener('blur', onHide)
     if (!fellBackOrLeft && !document.hidden) {
-      window.location.href = webUrl
+      window.open(webUrl, '_blank', 'noopener')
     }
   }, 1500)
 }
