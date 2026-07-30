@@ -1,17 +1,41 @@
 import { Place } from './types'
 
+export type ViewMode = 'all' | 'fav' | 'route'
+
+export const VIEW_MODE_ORDER: ViewMode[] = ['all', 'fav', 'route']
+
+export const VIEW_MODE_ICON: Record<ViewMode, string> = {
+  all: '👁️',
+  fav: '⭐',
+  route: '🚩',
+}
+
+export const VIEW_MODE_LABEL: Record<ViewMode, string> = {
+  all: '기본',
+  fav: '즐겨찾기만 보기',
+  route: '경로 지정 보기',
+}
+
+export function nextViewMode(mode: ViewMode): ViewMode {
+  return VIEW_MODE_ORDER[(VIEW_MODE_ORDER.indexOf(mode) + 1) % VIEW_MODE_ORDER.length]
+}
+
 export interface PlaceFilters {
-  favOnly: boolean
+  viewMode: ViewMode
   selectedZones: number[]
   selectedCategories: string[]
+  hiddenZones: number[]
 }
 
 export function matchesFilters(
   place: Place,
   filters: PlaceFilters,
   isFav: (id: string) => boolean,
+  isInRoute: (id: string) => boolean,
 ): boolean {
-  if (filters.favOnly && !isFav(place.id)) return false
+  if (filters.viewMode === 'fav' && !isFav(place.id)) return false
+  if (filters.viewMode === 'route' && !isInRoute(place.id)) return false
+  if (filters.hiddenZones.includes(place.zone)) return false
   if (filters.selectedZones.length > 0 && !filters.selectedZones.includes(place.zone)) return false
   if (filters.selectedCategories.length > 0 && !filters.selectedCategories.includes(place.category))
     return false

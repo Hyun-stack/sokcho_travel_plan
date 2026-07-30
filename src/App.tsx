@@ -8,9 +8,16 @@ import { useVisited } from './hooks/useVisited'
 import { useRoute } from './hooks/useRoute'
 import rawData from './data/sokcho.json'
 import { DestinationData, Place } from './types'
-import { PlaceFilters } from './filters'
+import { PlaceFilters, ViewMode } from './filters'
+import { assignZoneColors } from './zoneColors'
 
-const destination = rawData as unknown as DestinationData
+const rawDestination = rawData as unknown as Omit<DestinationData, 'zones'> & {
+  zones: Record<string, { name: string }>
+}
+const destination: DestinationData = {
+  ...rawDestination,
+  zones: assignZoneColors(rawDestination.zones),
+}
 
 const categories = Array.from(new Set(destination.places.map((p) => p.category))).sort((a, b) =>
   a.localeCompare(b, 'ko'),
@@ -19,11 +26,11 @@ const categories = Array.from(new Set(destination.places.map((p) => p.category))
 export default function App() {
   const { isFav, toggleFav } = useFavorites(destination.id)
   const { isVisited, toggleVisited } = useVisited(destination.id)
-  const { routeOrder, routeIndex, toggleRoute, clearRoute } = useRoute(destination.id)
-  const [favOnly, setFavOnly] = useState(false)
+  const { routeOrder, routeIndex, isInRoute, toggleRoute, clearRoute } = useRoute(destination.id)
+  const [viewMode, setViewMode] = useState<ViewMode>('all')
   const [selectedZones, setSelectedZones] = useState<number[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-  const [filterOpen, setFilterOpen] = useState(false)
+  const [hiddenZones, setHiddenZones] = useState<number[]>([])
   const [routeMode, setRouteMode] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [visiblePlaces, setVisiblePlaces] = useState<Place[]>([])
@@ -31,18 +38,19 @@ export default function App() {
   const panelRef = useRef<HTMLDivElement>(null)
 
   const filters = useMemo<PlaceFilters>(
-    () => ({ favOnly, selectedZones, selectedCategories }),
-    [favOnly, selectedZones, selectedCategories],
+    () => ({ viewMode, selectedZones, selectedCategories, hiddenZones }),
+    [viewMode, selectedZones, selectedCategories, hiddenZones],
   )
+
+  function handleToggleZoneVisible(zoneId: number) {
+    setHiddenZones((prev) =>
+      prev.includes(zoneId) ? prev.filter((z) => z !== zoneId) : [...prev, zoneId],
+    )
+  }
 
   function handleSelectPlace(id: string) {
     mapRef.current?.focusPlace(id)
     setExpanded(false)
-  }
-
-  function handleFilterOpenChange(value: boolean) {
-    setFilterOpen(value)
-    if (value) setExpanded(true)
   }
 
   return (
@@ -58,36 +66,38 @@ export default function App() {
         routeMode={routeMode}
         routeOrder={routeOrder}
         routeIndex={routeIndex}
+        isInRoute={isInRoute}
         onToggleRoute={toggleRoute}
         panelExpanded={expanded}
         onVisibleChange={setVisiblePlaces}
         panelRef={panelRef}
       />
       <Toolbar
-        title={destination.title}
-        filterOpen={filterOpen}
-        onFilterOpenChange={handleFilterOpenChange}
+        places={destination.places}
+        onSelectPlace={handleSelectPlace}
         routeMode={routeMode}
         onRouteModeChange={setRouteMode}
-        favOnly={favOnly}
-        onFavOnlyChange={setFavOnly}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
         routeCount={routeOrder.length}
         onClearRoute={clearRoute}
-        activeFilterCount={selectedZones.length + selectedCategories.length}
+        zones={destination.zones}
+        selectedZones={selectedZones}
+        onSelectedZonesChange={setSelectedZones}
+        categories={categories}
+        selectedCategories={selectedCategories}
+        onSelectedCategoriesChange={setSelectedCategories}
       />
-      <Legend zones={destination.zones} expanded={expanded} />
+      <Legend
+        zones={destination.zones}
+        expanded={expanded}
+        hiddenZones={hiddenZones}
+        onToggleZoneVisible={handleToggleZoneVisible}
+      />
       <Panel
         ref={panelRef}
         visiblePlaces={visiblePlaces}
         zones={destination.zones}
-        categories={categories}
-        favOnly={favOnly}
-        onFavOnlyChange={setFavOnly}
-        selectedZones={selectedZones}
-        onSelectedZonesChange={setSelectedZones}
-        selectedCategories={selectedCategories}
-        onSelectedCategoriesChange={setSelectedCategories}
-        filterOpen={filterOpen}
         isFav={isFav}
         onToggleFav={toggleFav}
         isVisited={isVisited}

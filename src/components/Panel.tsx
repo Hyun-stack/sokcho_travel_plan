@@ -1,19 +1,10 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { Place, ZoneInfo } from '../types'
 import { categoryEmoji } from '../filters'
-import FilterBar from './FilterBar'
 
 interface PanelProps {
   visiblePlaces: Place[]
   zones: Record<string, ZoneInfo>
-  categories: string[]
-  favOnly: boolean
-  onFavOnlyChange: (value: boolean) => void
-  selectedZones: number[]
-  onSelectedZonesChange: (zones: number[]) => void
-  selectedCategories: string[]
-  onSelectedCategoriesChange: (categories: string[]) => void
-  filterOpen: boolean
   isFav: (id: string) => boolean
   onToggleFav: (id: string) => void
   isVisited: (id: string) => boolean
@@ -30,14 +21,6 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
   {
     visiblePlaces,
     zones,
-    categories,
-    favOnly,
-    onFavOnlyChange,
-    selectedZones,
-    onSelectedZonesChange,
-    selectedCategories,
-    onSelectedCategoriesChange,
-    filterOpen,
     isFav,
     onToggleFav,
     isVisited,
@@ -135,18 +118,6 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
         </div>
       </div>
       {routeMode && <div className="route-hint">경로 모드: 장소를 탭한 순서대로 경로에 추가됩니다.</div>}
-      {filterOpen && (
-        <FilterBar
-          zones={zones}
-          categories={categories}
-          selectedZones={selectedZones}
-          onSelectedZonesChange={onSelectedZonesChange}
-          selectedCategories={selectedCategories}
-          onSelectedCategoriesChange={onSelectedCategoriesChange}
-          favOnly={favOnly}
-          onFavOnlyChange={onFavOnlyChange}
-        />
-      )}
       <div id="panel-list">
         {visiblePlaces.length === 0 ? (
           <div className="p-empty">표시할 장소가 없습니다.</div>

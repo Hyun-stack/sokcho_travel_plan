@@ -27,6 +27,7 @@ interface MapViewProps {
   routeMode: boolean
   routeOrder: string[]
   routeIndex: (id: string) => number
+  isInRoute: (id: string) => boolean
   onToggleRoute: (id: string) => void
   panelExpanded: boolean
   onVisibleChange: (places: Place[]) => void
@@ -78,6 +79,7 @@ function VisibilityTracker({
   data,
   filters,
   isFav,
+  isInRoute,
   panelExpanded,
   onVisibleChange,
   panelRef,
@@ -85,6 +87,7 @@ function VisibilityTracker({
   data: DestinationData
   filters: PlaceFilters
   isFav: (id: string) => boolean
+  isInRoute: (id: string) => boolean
   panelExpanded: boolean
   onVisibleChange: (places: Place[]) => void
   panelRef: React.RefObject<HTMLDivElement>
@@ -101,13 +104,13 @@ function VisibilityTracker({
     const timeoutId = setTimeout(recompute, panelExpanded ? 305 : 0)
     return () => clearTimeout(timeoutId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, isFav, panelExpanded])
+  }, [filters, isFav, isInRoute, panelExpanded])
 
   function recompute() {
     map.invalidateSize()
     const bounds = getVisibleBounds(map, panelRef.current)
     const visible = data.places.filter(
-      (p) => bounds.contains([p.lat, p.lng]) && matchesFilters(p, filters, isFav),
+      (p) => bounds.contains([p.lat, p.lng]) && matchesFilters(p, filters, isFav, isInRoute),
     )
     onVisibleChange(visible)
   }
@@ -131,6 +134,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     routeMode,
     routeOrder,
     routeIndex,
+    isInRoute,
     onToggleRoute,
     panelExpanded,
     onVisibleChange,
@@ -141,6 +145,11 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const mapRef = useRef<L.Map | null>(null)
   const markerRefs = useRef<Record<string, L.Marker | null>>({})
   const iconCache = useRef(new Map<string, L.DivIcon>())
+  const clusterRef = useRef<{ refreshClusters: () => void } | null>(null)
+
+  useEffect(() => {
+    clusterRef.current?.refreshClusters()
+  }, [filters, isFav, isInRoute])
 
   function getIcon(state: IconState) {
     const key = `${state.color}|${state.fav}|${state.dimmed}|${state.visited}|${state.routeIndex}`
@@ -197,21 +206,25 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         />
       )}
       <MarkerClusterGroup
+        ref={clusterRef as React.Ref<never>}
         maxClusterRadius={50}
         iconCreateFunction={(cluster: any) => {
           const children: L.Marker[] = cluster.getAllChildMarkers()
           const zoneCounts: Record<string, number> = {}
+          let dimmedCount = 0
           children.forEach((m) => {
             const zone = String((m as unknown as { zone?: number }).zone)
             zoneCounts[zone] = (zoneCounts[zone] || 0) + 1
+            if ((m as unknown as { dimmed?: boolean }).dimmed) dimmedCount++
           })
           const majorityZone = Object.keys(zoneCounts).sort(
             (a, b) => zoneCounts[b] - zoneCounts[a],
           )[0]
           const color = data.zones[majorityZone]?.color || '#555'
           const count = cluster.getChildCount()
+          const dimClass = dimmedCount === count ? 'zone-cluster-dim' : ''
           return L.divIcon({
-            html: `<div class="zone-cluster" style="background:${color}; width:36px; height:36px; font-size:14px;">${count}</div>`,
+            html: `<div class="zone-cluster ${dimClass}" style="background:${color}; width:36px; height:36px; font-size:14px;">${count}</div>`,
             className: '',
             iconSize: [36, 36],
           })
@@ -223,7 +236,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           const fav = isFav(place.id)
           const visited = isVisited(place.id)
           const idx = routeIndex(place.id)
-          const dimmed = !matchesFilters(place, filters, isFav)
+          const dimmed = !matchesFilters(place, filters, isFav, isInRoute)
           return (
             <Marker
               key={place.id}
@@ -240,7 +253,10 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
                 routeMode ? { click: () => onToggleRoute(place.id) } : undefined
               }
               ref={(m) => {
-                if (m) (m as unknown as { zone: number }).zone = place.zone
+                if (m) {
+                  ;(m as unknown as { zone: number; dimmed: boolean }).zone = place.zone
+                  ;(m as unknown as { zone: number; dimmed: boolean }).dimmed = dimmed
+                }
                 markerRefs.current[place.id] = m
               }}
             >
@@ -279,6 +295,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         data={data}
         filters={filters}
         isFav={isFav}
+        isInRoute={isInRoute}
         panelExpanded={panelExpanded}
         onVisibleChange={onVisibleChange}
         panelRef={panelRef}

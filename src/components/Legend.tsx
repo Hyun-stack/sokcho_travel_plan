@@ -4,15 +4,19 @@ import { ZoneInfo } from '../types'
 interface LegendProps {
   zones: Record<string, ZoneInfo>
   expanded: boolean
+  hiddenZones: number[]
+  onToggleZoneVisible: (zoneId: number) => void
 }
 
-export default function Legend({ zones, expanded }: LegendProps) {
-  const [collapsed, setCollapsed] = useState(false)
+export default function Legend({ zones, expanded, hiddenZones, onToggleZoneVisible }: LegendProps) {
+  const [collapsed, setCollapsed] = useState(true)
+
+  const isDesktop = window.innerWidth > 768
 
   return (
     <div
       className={`legend ${collapsed ? 'collapsed' : ''}`}
-      style={{ bottom: expanded ? 'calc(50vh + 12px)' : '60px' }}
+      style={{ bottom: !isDesktop && expanded ? 'calc(50vh + 12px)' : undefined }}
     >
       <button
         type="button"
@@ -24,12 +28,22 @@ export default function Legend({ zones, expanded }: LegendProps) {
         <span className={`legend-chevron ${collapsed ? 'down' : 'up'}`}>▾</span>
       </button>
       {!collapsed &&
-        Object.entries(zones).map(([id, zone]) => (
-          <div className="legend-item" key={id}>
-            <span className="dot" style={{ background: zone.color }} />
-            {zone.name}
-          </div>
-        ))}
+        Object.entries(zones).map(([id, zone]) => {
+          const zoneId = Number(id)
+          const off = hiddenZones.includes(zoneId)
+          return (
+            <button
+              type="button"
+              className={`legend-item ${off ? 'off' : ''}`}
+              key={id}
+              aria-pressed={!off}
+              onClick={() => onToggleZoneVisible(zoneId)}
+            >
+              <span className="dot" style={{ background: zone.color }} />
+              {zone.name}
+            </button>
+          )
+        })}
     </div>
   )
 }

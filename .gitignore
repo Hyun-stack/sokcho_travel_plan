@@ -12,3 +12,6 @@ Thumbs.db
 node_modules/
 dist/
 *.tsbuildinfo
+
+# plugin
+.playwright-mcp
