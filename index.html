@@ -12,9 +12,9 @@
 <style>
   :root {
     --primary-color: #2563eb;
-    --bg-glass: rgba(255, 255, 255, 0.75);
-    --border-glass: rgba(255, 255, 255, 0.5);
-    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.15);
+    --bg-glass: rgba(255, 255, 255, 0.8);
+    --border-glass: rgba(255, 255, 255, 0.6);
+    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.12);
     --radius-lg: 16px;
     --radius-sm: 8px;
   }
@@ -27,7 +27,7 @@
   .title-box {
     position: absolute; top: 12px; left: 12px; right: 12px; z-index: 1000;
     background: var(--bg-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--border-glass); padding: 10px 14px; border-radius: var(--radius-lg);
+    border: 1px solid var(--border-glass); padding: 12px 16px; border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md); pointer-events: auto;
   }
   .title-box h1 { margin: 0; font-size: 15px; font-weight: 700; color: #0f172a; }
@@ -38,7 +38,7 @@
     position: absolute; bottom: 60px; left: 12px; z-index: 999;
     background: var(--bg-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border-glass); padding: 10px 12px; border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md); font-size: 11px; width: auto; max-width: 180px;
+    box-shadow: var(--shadow-md); font-size: 11px; width: auto; max-width: 200px;
     pointer-events: auto;
   }
   .legend-title { font-weight: 700; margin-bottom: 6px; color: #334155; font-size: 11px; }
@@ -46,7 +46,7 @@
   .legend-item:last-child { margin-bottom: 0; }
   .legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
 
-  /* 모바일 바텀시트 패널 */
+  /* 모바일/PC 슬라이드 패널 기본 설정 */
   #panel {
     position: absolute; bottom: 0; left: 0; right: 0; z-index: 1000;
     background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
@@ -60,15 +60,12 @@
     will-change: transform;
   }
   
-  /* 드래그 및 토글 핸들 영역 */
+  /* 드래그 바 원복 아이콘 */
   #panel-drag-handle {
-    width: 100%; padding: 8px 0 2px; display: flex; flex-direction: column; align-items: center; cursor: pointer; touch-action: none;
+    width: 100%; padding: 10px 0 4px; display: flex; flex-direction: column; align-items: center; cursor: pointer; touch-action: none;
   }
-  .arrow-icon {
-    font-size: 12px; color: #64748b; transition: transform 0.3s ease; margin-bottom: 2px;
-  }
-  #panel.expanded .arrow-icon {
-    transform: rotate(180deg);
+  .drag-bar {
+    width: 36px; height: 4px; background: #cbd5e1; border-radius: 2px; margin-bottom: 6px;
   }
 
   #panel-head {
@@ -112,12 +109,23 @@
     border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; color: #334155;
   }
 
-  /* 데스크톱 화면 스타일 */
+  /* PC/웹 화면 레이아웃 깨짐 보정 */
   @media (min-width: 769px) {
-    .title-box { max-width: 320px; }
+    .title-box { max-width: 320px; right: auto; top: 20px; left: 20px; }
     .legend { bottom: 20px; left: 20px; max-width: 220px; }
-    #panel { top: 80px; right: 20px; left: auto; bottom: auto; width: 300px; height: calc(100vh - 100px); border-radius: var(--radius-lg); transform: none !important; }
-    #panel-drag-handle { display: none; }
+    #panel { 
+      top: 20px; 
+      right: 20px; 
+      left: auto; 
+      bottom: 20px; 
+      width: 320px; 
+      height: calc(100vh - 40px); 
+      border-radius: var(--radius-lg); 
+      border: 1px solid var(--border-glass);
+      transform: none !important; 
+    }
+    #panel-drag-handle { padding-top: 14px; cursor: default; }
+    .drag-bar { display: none; }
   }
 </style>
 </head>
@@ -130,7 +138,7 @@
   <p>권역별 관광명소 일정 가이드</p>
 </div>
 
-<!-- 좌측 하단 범례 카드 (투명도 적용) -->
+<!-- 좌측 하단 범례 카드 -->
 <div class="legend">
   <div class="legend-title">권역별 안내</div>
   <div class="legend-item"><span class="dot" style="background:#185FA5;"></span>청호동·속초해변</div>
@@ -140,10 +148,10 @@
   <div class="legend-item"><span class="dot" style="background:#854F0B;"></span>조양동</div>
 </div>
 
-<!-- 하단 드래그 슬라이드 패널 -->
+<!-- 하단 드래그 패널 -->
 <div id="panel">
   <div id="panel-drag-handle">
-    <div class="arrow-icon" id="arrow-icon">▲</div>
+    <div class="drag-bar"></div>
     <div id="panel-head">
       <span class="title">화면 내 장소 목록</span>
       <span class="count" id="p-count">0</span>
@@ -335,7 +343,7 @@ window.focusPlace = function(name){
   collapsePanel();
 };
 
-/* --- 모바일 실제 드래그 및 터치 슬라이드 구현 --- */
+/* --- 모바일 터치 슬라이드 동작 --- */
 const panel = document.getElementById('panel');
 const handle = document.getElementById('panel-drag-handle');
 let startY = 0, currentY = 0, initialTranslateY = 0;
@@ -343,9 +351,9 @@ let isDragging = false;
 let isExpanded = false;
 
 function expandPanel() {
+  if (window.innerWidth > 768) return;
   panel.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
   panel.style.transform = 'translateY(0)';
-  panel.classList.add('expanded');
   isExpanded = true;
 }
 
@@ -353,16 +361,17 @@ function collapsePanel() {
   if (window.innerWidth > 768) return;
   panel.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
   panel.style.transform = 'translateY(calc(100% - 48px))';
-  panel.classList.remove('expanded');
   isExpanded = false;
 }
 
-handle.addEventListener('click', (e) => {
+handle.addEventListener('click', () => {
+  if (window.innerWidth > 768) return;
   if (isExpanded) collapsePanel();
   else expandPanel();
 });
 
 handle.addEventListener('touchstart', (e) => {
+  if (window.innerWidth > 768) return;
   startY = e.touches[0].clientY;
   const transformVal = window.getComputedStyle(panel).transform;
   if (transformVal !== 'none') {
@@ -376,7 +385,7 @@ handle.addEventListener('touchstart', (e) => {
 }, { passive: true });
 
 window.addEventListener('touchmove', (e) => {
-  if (!isDragging) return;
+  if (!isDragging || window.innerWidth > 768) return;
   currentY = e.touches[0].clientY;
   const deltaY = currentY - startY;
   let newY = initialTranslateY + deltaY;
@@ -387,7 +396,7 @@ window.addEventListener('touchmove', (e) => {
 }, { passive: true });
 
 window.addEventListener('touchend', () => {
-  if (!isDragging) return;
+  if (!isDragging || window.innerWidth > 768) return;
   isDragging = false;
   const maxTranslate = panel.offsetHeight - 48;
   const currentTransform = new DOMMatrix(window.getComputedStyle(panel).transform).m42;
