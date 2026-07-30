@@ -47,15 +47,23 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
   const [openId, setOpenId] = useState<string | null>(null)
 
   useEffect(() => {
-    function handleVisible() {
-      if (document.visibilityState !== 'visible') return
+    function resetStuckDrag() {
       if (!dragState.current.dragging) return
       dragState.current.dragging = false
       setNoTransition(false)
       setDragTransform(null)
     }
-    document.addEventListener('visibilitychange', handleVisible)
-    return () => document.removeEventListener('visibilitychange', handleVisible)
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') resetStuckDrag()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('pageshow', resetStuckDrag)
+    window.addEventListener('focus', resetStuckDrag)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('pageshow', resetStuckDrag)
+      window.removeEventListener('focus', resetStuckDrag)
+    }
   }, [])
 
   const isDesktop = () => window.innerWidth > 768

@@ -119,17 +119,33 @@ function VisibilityTracker({
   recomputeRef.current = recompute
 
   useEffect(() => {
-    function handleVisible() {
-      if (document.visibilityState === 'visible') {
+    function handleResume() {
+      // iOS standalone (Add to Home Screen) apps often resume from a stale
+      // frozen frame instead of firing a normal reload/repaint, leaving
+      // blank areas until something forces the WebView to repaint.
+      const container = map.getContainer()
+      container.style.display = 'none'
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      container.offsetHeight
+      container.style.display = ''
+      requestAnimationFrame(() => {
         recomputeRef.current()
-      }
+      })
     }
-    document.addEventListener('visibilitychange', handleVisible)
-    window.addEventListener('pageshow', handleVisible)
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') handleResume()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('pageshow', handleResume)
+    window.addEventListener('focus', handleResume)
+    window.visualViewport?.addEventListener('resize', handleResume)
     return () => {
-      document.removeEventListener('visibilitychange', handleVisible)
-      window.removeEventListener('pageshow', handleVisible)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('pageshow', handleResume)
+      window.removeEventListener('focus', handleResume)
+      window.visualViewport?.removeEventListener('resize', handleResume)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useMapEvents({
