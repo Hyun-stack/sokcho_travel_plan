@@ -1,4 +1,4 @@
-# 스마트 여행 지도
+# Travel-map
 
 속초 여행 동선을 권역별로 보여주는 인터랙티브 지도 웹앱입니다. React + Vite + Leaflet으로 만들었고, GitHub Pages로 배포됩니다.
 
