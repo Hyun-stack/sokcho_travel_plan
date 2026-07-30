@@ -229,7 +229,6 @@ const places = [
 ["베이커마레 by 마시랑제빵소",38.184836,128.601337,9,"이색간식"]
 ];
 
-/* 지도 생성 시 zoomControl 옵션을 false로 보관하여 +- 버튼을 제거함 */
 const map = L.map('map', { zoomControl: false }).setView([38.20, 128.590], 13);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -321,7 +320,9 @@ function refreshAll(){
   refreshList();
 }
 
+/* 화면(현재 지도 Bounds)에 보이는 장소만 실시간 계산하여 출력 */
 function refreshList(){
+  map.invalidateSize(); // 지도 뷰포트 크기 갱신
   const bounds = map.getBounds();
   let visible = places.filter(([name,lat,lng]) => bounds.contains([lat,lng]));
   if (favOnly.checked) visible = visible.filter(([name]) => isFav(name));
@@ -343,7 +344,7 @@ window.focusPlace = function(name){
   collapsePanel();
 };
 
-/* --- 모바일 터치 슬라이드 동작 --- */
+/* --- 모바일 터치 슬라이드 동작 및 상태에 따른 실시간 목록 갱신 --- */
 const panel = document.getElementById('panel');
 const handle = document.getElementById('panel-drag-handle');
 let startY = 0, currentY = 0, initialTranslateY = 0;
@@ -355,6 +356,7 @@ function expandPanel() {
   panel.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
   panel.style.transform = 'translateY(0)';
   isExpanded = true;
+  setTimeout(refreshList, 300); // 슬라이드가 완료된 후 지도 재계산 및 목록 갱신
 }
 
 function collapsePanel() {
@@ -362,6 +364,7 @@ function collapsePanel() {
   panel.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
   panel.style.transform = 'translateY(calc(100% - 48px))';
   isExpanded = false;
+  setTimeout(refreshList, 300); // 슬라이드가 접힌 후 지도 재계산 및 목록 갱신
 }
 
 handle.addEventListener('click', () => {
