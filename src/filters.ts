@@ -22,7 +22,6 @@ export function nextViewMode(mode: ViewMode): ViewMode {
 
 export interface PlaceFilters {
   viewMode: ViewMode
-  selectedZones: number[]
   selectedCategories: string[]
   hiddenZones: number[]
 }
@@ -36,7 +35,6 @@ export function matchesFilters(
   if (filters.viewMode === 'fav' && !isFav(place.id)) return false
   if (filters.viewMode === 'route' && !isInRoute(place.id)) return false
   if (filters.hiddenZones.includes(place.zone)) return false
-  if (filters.selectedZones.length > 0 && !filters.selectedZones.includes(place.zone)) return false
   if (filters.selectedCategories.length > 0 && !filters.selectedCategories.includes(place.category))
     return false
   return true

@@ -1,4 +1,4 @@
-import { Place, ZoneInfo } from '../types'
+import { Place } from '../types'
 import {
   categoryEmoji,
   nextViewMode,
@@ -6,7 +6,6 @@ import {
   VIEW_MODE_ICON,
   VIEW_MODE_LABEL,
 } from '../filters'
-import ZoneMultiSelect from './ZoneMultiSelect'
 import SearchBox from './SearchBox'
 
 interface ToolbarProps {
@@ -18,9 +17,6 @@ interface ToolbarProps {
   onViewModeChange: (value: ViewMode) => void
   routeCount: number
   onClearRoute: () => void
-  zones: Record<string, ZoneInfo>
-  selectedZones: number[]
-  onSelectedZonesChange: (zones: number[]) => void
   categories: string[]
   selectedCategories: string[]
   onSelectedCategoriesChange: (categories: string[]) => void
@@ -39,66 +35,58 @@ export default function Toolbar({
   onViewModeChange,
   routeCount,
   onClearRoute,
-  zones,
-  selectedZones,
-  onSelectedZonesChange,
   categories,
   selectedCategories,
   onSelectedCategoriesChange,
 }: ToolbarProps) {
   return (
-    <div className="toolbar">
-      <div className="toolbar-row">
-        <SearchBox places={places} onSelectPlace={onSelectPlace} />
-        <div className="toolbar-actions">
-          <button
-            type="button"
-            className={`tb-btn ${routeMode ? 'on' : ''}`}
-            title="경로 모드"
-            aria-pressed={routeMode}
-            onClick={() => onRouteModeChange(!routeMode)}
-          >
-            🧭
-            {routeCount > 0 && <span className="tb-badge">{routeCount}</span>}
-          </button>
-          <button
-            type="button"
-            className={`tb-btn ${viewMode !== 'all' ? 'on' : ''}`}
-            title={VIEW_MODE_LABEL[viewMode]}
-            aria-label={VIEW_MODE_LABEL[viewMode]}
-            onClick={() => onViewModeChange(nextViewMode(viewMode))}
-          >
-            {VIEW_MODE_ICON[viewMode]}
-          </button>
-          {routeCount > 0 && (
-            <button type="button" className="tb-btn" title="경로 초기화" onClick={onClearRoute}>
-              🗑️
+    <>
+      <div className="toolbar">
+        <div className="toolbar-row">
+          <SearchBox places={places} onSelectPlace={onSelectPlace} />
+          <div className="toolbar-actions">
+            <button
+              type="button"
+              className={`tb-btn ${routeMode ? 'on' : ''}`}
+              title="경로 모드"
+              aria-pressed={routeMode}
+              onClick={() => onRouteModeChange(!routeMode)}
+            >
+              🧭
+              {routeCount > 0 && <span className="tb-badge">{routeCount}</span>}
             </button>
-          )}
-        </div>
-      </div>
-      <div className="toolbar-row toolbar-filters">
-        <ZoneMultiSelect
-          zones={zones}
-          selectedZones={selectedZones}
-          onSelectedZonesChange={onSelectedZonesChange}
-        />
-        <div className="toolbar-cat-row">
-          {categories.map((category) => {
-            const on = selectedCategories.includes(category)
-            return (
-              <button
-                key={category}
-                type="button"
-                className={`chip ${on ? 'on' : ''}`}
-                onClick={() => onSelectedCategoriesChange(toggle(selectedCategories, category))}
-              >
-                {categoryEmoji(category)} {category}
+            <button
+              type="button"
+              className={`tb-btn ${viewMode !== 'all' ? 'on' : ''}`}
+              title={VIEW_MODE_LABEL[viewMode]}
+              aria-label={VIEW_MODE_LABEL[viewMode]}
+              onClick={() => onViewModeChange(nextViewMode(viewMode))}
+            >
+              {VIEW_MODE_ICON[viewMode]}
+            </button>
+            {routeCount > 0 && (
+              <button type="button" className="tb-btn" title="경로 초기화" onClick={onClearRoute}>
+                🗑️
               </button>
-            )
-          })}
+            )}
+          </div>
         </div>
       </div>
-    </div>
+      <div className="category-scroll">
+        {categories.map((category) => {
+          const on = selectedCategories.includes(category)
+          return (
+            <button
+              key={category}
+              type="button"
+              className={`chip ${on ? 'on' : ''}`}
+              onClick={() => onSelectedCategoriesChange(toggle(selectedCategories, category))}
+            >
+              {categoryEmoji(category)} {category}
+            </button>
+          )
+        })}
+      </div>
+    </>
   )
 }

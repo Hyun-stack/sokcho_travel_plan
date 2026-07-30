@@ -28,7 +28,6 @@ export default function App() {
   const { isVisited, toggleVisited } = useVisited(destination.id)
   const { routeOrder, routeIndex, isInRoute, toggleRoute, clearRoute } = useRoute(destination.id)
   const [viewMode, setViewMode] = useState<ViewMode>('all')
-  const [selectedZones, setSelectedZones] = useState<number[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [hiddenZones, setHiddenZones] = useState<number[]>([])
   const [routeMode, setRouteMode] = useState(false)
@@ -39,8 +38,8 @@ export default function App() {
   const panelRef = useRef<HTMLDivElement>(null)
 
   const filters = useMemo<PlaceFilters>(
-    () => ({ viewMode, selectedZones, selectedCategories, hiddenZones }),
-    [viewMode, selectedZones, selectedCategories, hiddenZones],
+    () => ({ viewMode, selectedCategories, hiddenZones }),
+    [viewMode, selectedCategories, hiddenZones],
   )
 
   const filteredPlaces = useMemo(
@@ -89,9 +88,6 @@ export default function App() {
         onViewModeChange={setViewMode}
         routeCount={routeOrder.length}
         onClearRoute={clearRoute}
-        zones={destination.zones}
-        selectedZones={selectedZones}
-        onSelectedZonesChange={setSelectedZones}
         categories={categories}
         selectedCategories={selectedCategories}
         onSelectedCategoriesChange={setSelectedCategories}
