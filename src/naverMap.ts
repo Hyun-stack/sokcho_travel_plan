@@ -16,13 +16,15 @@ export function openNaverMapDirections(name: string, lat: number, lng: number) {
   }
   document.addEventListener('visibilitychange', onHide, { once: true })
   window.addEventListener('pagehide', onHide, { once: true })
+  window.addEventListener('blur', onHide, { once: true })
 
   window.location.href = scheme
 
   setTimeout(() => {
     document.removeEventListener('visibilitychange', onHide)
     window.removeEventListener('pagehide', onHide)
-    if (!fellBackOrLeft) {
+    window.removeEventListener('blur', onHide)
+    if (!fellBackOrLeft && !document.hidden) {
       window.location.href = webUrl
     }
   }, 1500)

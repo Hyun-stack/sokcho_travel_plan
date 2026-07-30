@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Place, ZoneInfo } from '../types'
 import { categoryEmoji } from '../filters'
 import { openNaverMapDirections } from '../naverMap'
@@ -45,6 +45,18 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
   const [dragTransform, setDragTransform] = useState<number | null>(null)
   const [noTransition, setNoTransition] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
+
+  useEffect(() => {
+    function handleVisible() {
+      if (document.visibilityState !== 'visible') return
+      if (!dragState.current.dragging) return
+      dragState.current.dragging = false
+      setNoTransition(false)
+      setDragTransform(null)
+    }
+    document.addEventListener('visibilitychange', handleVisible)
+    return () => document.removeEventListener('visibilitychange', handleVisible)
+  }, [])
 
   const isDesktop = () => window.innerWidth > 768
 

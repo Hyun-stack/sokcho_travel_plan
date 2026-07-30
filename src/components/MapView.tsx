@@ -115,6 +115,23 @@ function VisibilityTracker({
     onVisibleChange(visible)
   }
 
+  const recomputeRef = useRef(recompute)
+  recomputeRef.current = recompute
+
+  useEffect(() => {
+    function handleVisible() {
+      if (document.visibilityState === 'visible') {
+        recomputeRef.current()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisible)
+    window.addEventListener('pageshow', handleVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisible)
+      window.removeEventListener('pageshow', handleVisible)
+    }
+  }, [])
+
   useMapEvents({
     moveend: recompute,
     zoomend: recompute,
