@@ -40,7 +40,7 @@ export default function Toolbar({
   onSelectedCategoriesChange,
 }: ToolbarProps) {
   return (
-    <>
+    <div className="map-topbar">
       <div className="toolbar">
         <div className="toolbar-row">
           <SearchBox places={places} onSelectPlace={onSelectPlace} />
@@ -87,6 +87,6 @@ export default function Toolbar({
           )
         })}
       </div>
-    </>
+    </div>
   )
 }
