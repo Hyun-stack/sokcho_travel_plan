@@ -1,0 +1,11 @@
+# OMC runtime state (local only)
+.omc/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
