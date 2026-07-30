@@ -15,6 +15,8 @@ interface PanelProps {
   onSelectPlace: (id: string) => void
   expanded: boolean
   onExpandedChange: (expanded: boolean) => void
+  mapOnly: boolean
+  onMapOnlyChange: (value: boolean) => void
 }
 
 const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
@@ -31,6 +33,8 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
     onSelectPlace,
     expanded,
     onExpandedChange,
+    mapOnly,
+    onMapOnlyChange,
   },
   forwardedRef,
 ) {
@@ -113,9 +117,17 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
       >
         <div className="drag-bar" />
         <div id="panel-head">
-          <span className="title">화면 내 장소 목록</span>
+          <span className="title">장소 목록</span>
           <span className="count">{visiblePlaces.length}</span>
         </div>
+        <label className="map-only-check" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={mapOnly}
+            onChange={() => onMapOnlyChange(!mapOnly)}
+          />
+          🗺️ 현재 지도 장소만 보기
+        </label>
       </div>
       {routeMode && <div className="route-hint">경로 모드: 장소를 탭한 순서대로 경로에 추가됩니다.</div>}
       <div id="panel-list">

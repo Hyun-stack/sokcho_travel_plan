@@ -95,8 +95,6 @@ export default function App() {
         categories={categories}
         selectedCategories={selectedCategories}
         onSelectedCategoriesChange={setSelectedCategories}
-        mapOnly={mapOnly}
-        onMapOnlyChange={setMapOnly}
       />
       <Legend
         zones={destination.zones}
@@ -118,6 +116,8 @@ export default function App() {
         onSelectPlace={handleSelectPlace}
         expanded={expanded}
         onExpandedChange={setExpanded}
+        mapOnly={mapOnly}
+        onMapOnlyChange={setMapOnly}
       />
     </>
   )

@@ -24,8 +24,6 @@ interface ToolbarProps {
   categories: string[]
   selectedCategories: string[]
   onSelectedCategoriesChange: (categories: string[]) => void
-  mapOnly: boolean
-  onMapOnlyChange: (value: boolean) => void
 }
 
 function toggle<T>(list: T[], value: T): T[] {
@@ -47,8 +45,6 @@ export default function Toolbar({
   categories,
   selectedCategories,
   onSelectedCategoriesChange,
-  mapOnly,
-  onMapOnlyChange,
 }: ToolbarProps) {
   return (
     <div className="toolbar">
@@ -87,14 +83,6 @@ export default function Toolbar({
           selectedZones={selectedZones}
           onSelectedZonesChange={onSelectedZonesChange}
         />
-        <button
-          type="button"
-          className={`chip map-only-toggle ${mapOnly ? 'on' : ''}`}
-          aria-pressed={mapOnly}
-          onClick={() => onMapOnlyChange(!mapOnly)}
-        >
-          🗺️ 현재 지도 장소만 보기
-        </button>
         <div className="toolbar-cat-row">
           {categories.map((category) => {
             const on = selectedCategories.includes(category)
