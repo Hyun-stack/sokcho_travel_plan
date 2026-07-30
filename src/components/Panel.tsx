@@ -45,6 +45,7 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
   const [dragTransform, setDragTransform] = useState<number | null>(null)
   const [noTransition, setNoTransition] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [naverFallback, setNaverFallback] = useState<{ id: string; url: string } | null>(null)
 
   useEffect(() => {
     function resetStuckDrag() {
@@ -116,6 +117,7 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
       return
     }
     setOpenId((prev) => (prev === id ? null : id))
+    setNaverFallback(null)
   }
 
   const style: React.CSSProperties = {}
@@ -216,11 +218,27 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(function Panel(
                       <button
                         type="button"
                         className="detail-btn naver-btn"
-                        onClick={() => openNaverMapDirections(place.name, place.lat, place.lng)}
+                        onClick={() => {
+                          setNaverFallback(null)
+                          openNaverMapDirections(place.name, place.lat, place.lng, (url) =>
+                            setNaverFallback({ id: place.id, url }),
+                          )
+                        }}
                       >
                         🧭 네이버 지도
                       </button>
                     </div>
+                    {naverFallback?.id === place.id && (
+                      <a
+                        className="naver-fallback-link"
+                        href={naverFallback.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setNaverFallback(null)}
+                      >
+                        네이버 지도 앱이 열리지 않나요? 웹으로 열기 →
+                      </a>
+                    )}
                   </div>
                 )}
               </div>
