@@ -323,7 +323,7 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
     <div className="env-share" ref={rootRef}>
       <button
         type="button"
-        className={`tb-btn ${env ? 'on' : ''}`}
+        className={`tb-btn ${open ? 'on' : ''}`}
         title={`환경 공유 및 선택 (현재: ${env || '기본'})`}
         onClick={() => setOpen((s) => !s)}
       >
