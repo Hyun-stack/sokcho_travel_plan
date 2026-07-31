@@ -70,7 +70,7 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
   }
 
   return (
-    <div style={{ display: 'inline-block', position: 'relative' }}>
+    <div className="env-share">
       <button
         type="button"
         className="tb-btn"
@@ -80,11 +80,11 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
         🌐
       </button>
       {open && (
-        <div style={{ position: 'absolute', right: 0, top: '36px', width: 360, padding: 12, background: 'white', border: '1px solid #ddd', zIndex: 999 }}>
+        <div className="env-share-dropdown">
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 12 }}>환경 이름 (비워두면 기본)</label>
-            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-              <input value={envInput} onChange={(e) => setEnvInput(e.target.value)} style={{ flex: 1 }} />
+            <label>환경 이름 (비워두면 기본)</label>
+            <div className="row" style={{ marginTop: 6 }}>
+              <input type="text" value={envInput} onChange={(e) => setEnvInput(e.target.value)} />
               <button onClick={() => { onEnvChange(envInput); setOpen(false) }}>설정</button>
             </div>
             <div style={{ fontSize: 12, color: '#666', marginTop: 6 }}>현재: {env || '(기본)'}</div>
@@ -96,9 +96,9 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
           </div>
 
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 12 }}>가져오기 (JSON 붙여넣기)</label>
+            <label>가져오기 (JSON 붙여넣기)</label>
             <textarea value={importText} onChange={(e) => setImportText(e.target.value)} style={{ width: '100%', height: 120, marginTop: 6 }} />
-            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+            <div className="actions">
               <button onClick={() => doImport(true)}>가져와서 덮어쓰기 (권장)</button>
               <button onClick={() => doImport(false)}>가져와서 병합</button>
             </div>
