@@ -133,11 +133,16 @@ html, body, #root { margin: 0; padding: 0; height: 100%; width: 100%; font-famil
 }
 .env-list-item.active .env-item-name { color: #1d4ed8; }
 .env-item-badge { font-size: 9.5px; font-weight: 700; background: #3b82f6; color: #fff; padding: 1.5px 5px; border-radius: 4px; }
-.env-item-delete {
+.env-item-delete, .env-item-action-btn {
   background: none; border: none; cursor: pointer; padding: 2px 4px; font-size: 11px;
   opacity: 0.5; transition: opacity 0.15s ease, transform 0.15s ease;
 }
-.env-item-delete:hover { opacity: 1; transform: scale(1.15); }
+.env-item-delete:hover, .env-item-action-btn:hover { opacity: 1; transform: scale(1.15); }
+.env-edit-input {
+  flex: 1; min-width: 0; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 6px;
+  font-size: 11.5px; font-family: inherit; background: #fff; color: #0f172a;
+}
+.env-edit-input:focus { border-color: var(--primary-color); outline: none; }
 
 /* make category bar visually lower than toolbar dropdowns */
 .category-scroll { z-index: 1005; }

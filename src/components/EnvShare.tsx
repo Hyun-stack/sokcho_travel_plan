@@ -70,6 +70,10 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
   const [importText, setImportText] = useState('')
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
   
+  // 이름 변경 관련 상태
+  const [editingEnv, setEditingEnv] = useState<string | null>(null)
+  const [editInput, setEditInput] = useState('')
+
   const rootRef = useRef<HTMLDivElement>(null)
 
   // 바깥 영역 클릭 시 드롭다운 닫기
@@ -91,6 +95,8 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
     setShowJson(false)
     setImportText('')
     setEnvInput('')
+    setEditingEnv(null)
+    setEditInput('')
     // 목록 새로고침
     setEnvList(getExistingEnvs(destinationId))
   }, [activeTab, open, destinationId])
@@ -135,6 +141,64 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
     setTimeout(() => {
       window.location.reload()
     }, 500)
+  }
+
+  // 환경 이름 변경
+  function handleRenameEnv(oldName: string, newNameInput: string) {
+    const trimmed = newNameInput.trim()
+    if (!trimmed) {
+      setFeedback({ type: 'error', msg: '변경할 환경 이름을 입력해주세요.' })
+      return
+    }
+    if (trimmed === oldName) {
+      setEditingEnv(null)
+      return
+    }
+    if (trimmed.includes(':')) {
+      setFeedback({ type: 'error', msg: '환경 이름에 콜론(:) 문자는 포함할 수 없습니다.' })
+      return
+    }
+    
+    const currentList = getExistingEnvs(destinationId)
+    if (currentList.includes(trimmed)) {
+      setFeedback({ type: 'error', msg: '이미 존재하는 환경 이름입니다.' })
+      return
+    }
+
+    // 1. LocalStorage의 기존 키들 백업 및 삭제, 새 키에 복사
+    const oldKeys = keysFor(destinationId, oldName)
+    const newKeys = keysFor(destinationId, trimmed)
+
+    const favData = localStorage.getItem(oldKeys.favKey)
+    const routeData = localStorage.getItem(oldKeys.routeKey)
+    const visitedData = localStorage.getItem(oldKeys.visitedKey)
+
+    // 새 키에 데이터 이동
+    if (favData !== null) localStorage.setItem(newKeys.favKey, favData)
+    if (routeData !== null) localStorage.setItem(newKeys.routeKey, routeData)
+    if (visitedData !== null) localStorage.setItem(newKeys.visitedKey, visitedData)
+
+    // 기존 키 삭제
+    localStorage.removeItem(oldKeys.favKey)
+    localStorage.removeItem(oldKeys.routeKey)
+    localStorage.removeItem(oldKeys.visitedKey)
+
+    // 2. 등록된 환경 목록 업데이트
+    const updatedList = currentList.map(item => item === oldName ? trimmed : item).sort()
+    localStorage.setItem(`env:list:${destinationId}`, JSON.stringify(updatedList))
+    setEnvList(updatedList)
+    setEditingEnv(null)
+
+    // 3. 만약 변경된 환경이 현재 활성 상태였던 경우 활성 환경 이름도 변경 및 페이지 리로드
+    if (env === oldName) {
+      onEnvChange(trimmed)
+      setFeedback({ type: 'success', msg: `활성 환경의 이름이 '${trimmed}'(으)로 변경되었습니다. 새로고침 중...` })
+      setTimeout(() => {
+        window.location.reload()
+      }, 800)
+    } else {
+      setFeedback({ type: 'success', msg: `'${oldName}' 환경의 이름이 '${trimmed}'(으)로 변경되었습니다.` })
+    }
   }
 
   // 환경 데이터 삭제
@@ -310,27 +374,83 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
                     {env === '' && <span className="env-item-badge">활성</span>}
                   </div>
                   {/* Custom environments */}
-                  {envList.map((name) => (
-                    <div
-                      key={name}
-                      className={`env-list-item ${env === name ? 'active' : ''}`}
-                      onClick={() => handleSwitchEnv(name)}
-                    >
-                      <span className="env-item-name" title={name}>📁 {name}</span>
-                      {env === name ? (
-                        <span className="env-item-badge">활성</span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="env-item-delete"
-                          onClick={(e) => handleDeleteEnv(name, e)}
-                          title="이 환경의 모든 데이터 삭제"
-                        >
-                          🗑️
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  {envList.map((name) => {
+                    const isActive = env === name
+                    const isEditing = editingEnv === name
+                    
+                    return (
+                      <div
+                        key={name}
+                        className={`env-list-item ${isActive ? 'active' : ''}`}
+                        onClick={() => !isEditing && handleSwitchEnv(name)}
+                      >
+                        {isEditing ? (
+                          <div className="env-edit-group" style={{ display: 'flex', gap: '4px', width: '100%', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="text"
+                              className="env-edit-input"
+                              value={editInput}
+                              onChange={(e) => setEditInput(e.target.value)}
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleRenameEnv(name, editInput)
+                                if (e.key === 'Escape') setEditingEnv(null)
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="env-btn env-btn-success env-btn-sm"
+                              onClick={() => handleRenameEnv(name, editInput)}
+                              title="저장"
+                              style={{ padding: '4px 8px', fontSize: '10px' }}
+                            >
+                              ✓
+                            </button>
+                            <button
+                              type="button"
+                              className="env-btn env-btn-secondary env-btn-sm"
+                              onClick={() => setEditingEnv(null)}
+                              title="취소"
+                              style={{ padding: '4px 8px', fontSize: '10px' }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="env-item-name" title={name}>📁 {name}</span>
+                            <div className="env-item-actions" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                              {isActive && <span className="env-item-badge">활성</span>}
+                              
+                              <button
+                                type="button"
+                                className="env-item-action-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditingEnv(name)
+                                  setEditInput(name)
+                                }}
+                                title="이름 변경"
+                              >
+                                ✏️
+                              </button>
+
+                              {!isActive && (
+                                <button
+                                  type="button"
+                                  className="env-item-delete"
+                                  onClick={(e) => handleDeleteEnv(name, e)}
+                                  title="이 환경의 모든 데이터 삭제"
+                                >
+                                  🗑️
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 
