@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Place } from '../types'
 import {
   categoryEmoji,
@@ -7,6 +8,7 @@ import {
   VIEW_MODE_LABEL,
 } from '../filters'
 import SearchBox from './SearchBox'
+import EnvShare from './EnvShare'
 
 interface ToolbarProps {
   places: Place[]
@@ -20,6 +22,9 @@ interface ToolbarProps {
   categories: string[]
   selectedCategories: string[]
   onSelectedCategoriesChange: (categories: string[]) => void
+  destinationId: string
+  env: string
+  onEnvChange: (v: string) => void
 }
 
 function toggle<T>(list: T[], value: T): T[] {
@@ -38,7 +43,12 @@ export default function Toolbar({
   categories,
   selectedCategories,
   onSelectedCategoriesChange,
+  destinationId,
+  env,
+  onEnvChange,
 }: ToolbarProps) {
+  const [show, setShow] = useState(false)
+
   return (
     <div className="map-topbar">
       <div className="toolbar">
@@ -69,6 +79,7 @@ export default function Toolbar({
                 🗑️
               </button>
             )}
+            <EnvShare destinationId={destinationId} env={env} onEnvChange={onEnvChange} />
           </div>
         </div>
       </div>

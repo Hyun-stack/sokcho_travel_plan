@@ -1,20 +1,24 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
-function storageKey(destinationId: string) {
-  return `route:${destinationId}`
+function storageKey(destinationId: string, env?: string) {
+  return env && env.length > 0 ? `env:${env}:route:${destinationId}` : `route:${destinationId}`
 }
 
-function loadRoute(destinationId: string): string[] {
+function loadRoute(destinationId: string, env?: string): string[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(storageKey(destinationId)) || '[]')
+    const raw = JSON.parse(localStorage.getItem(storageKey(destinationId, env)) || '[]')
     return Array.isArray(raw) ? raw : []
   } catch {
     return []
   }
 }
 
-export function useRoute(destinationId: string) {
-  const [routeOrder, setRouteOrder] = useState<string[]>(() => loadRoute(destinationId))
+export function useRoute(destinationId: string, env?: string) {
+  const [routeOrder, setRouteOrder] = useState<string[]>(() => loadRoute(destinationId, env))
+
+  useEffect(() => {
+    setRouteOrder(loadRoute(destinationId, env))
+  }, [destinationId, env])
 
   const orderMap = useMemo(() => {
     const map = new Map<string, number>()
@@ -29,17 +33,17 @@ export function useRoute(destinationId: string) {
     (id: string) => {
       setRouteOrder((prev) => {
         const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-        localStorage.setItem(storageKey(destinationId), JSON.stringify(next))
+        localStorage.setItem(storageKey(destinationId, env), JSON.stringify(next))
         return next
       })
     },
-    [destinationId],
+    [destinationId, env],
   )
 
   const clearRoute = useCallback(() => {
-    localStorage.setItem(storageKey(destinationId), '[]')
+    localStorage.setItem(storageKey(destinationId, env), '[]')
     setRouteOrder([])
-  }, [destinationId])
+  }, [destinationId, env])
 
   return { routeOrder, isInRoute, routeIndex, toggleRoute, clearRoute }
 }

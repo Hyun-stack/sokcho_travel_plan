@@ -1,21 +1,25 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
-function storageKey(destinationId: string) {
-  return `visited:${destinationId}`
+function storageKey(destinationId: string, env?: string) {
+  return env && env.length > 0 ? `env:${env}:visited:${destinationId}` : `visited:${destinationId}`
 }
 
-function loadVisited(destinationId: string): string[] {
+function loadVisited(destinationId: string, env?: string): string[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(storageKey(destinationId)) || '[]')
+    const raw = JSON.parse(localStorage.getItem(storageKey(destinationId, env)) || '[]')
     return Array.isArray(raw) ? raw : []
   } catch {
     return []
   }
 }
 
-export function useVisited(destinationId: string) {
-  const [visited, setVisited] = useState<string[]>(() => loadVisited(destinationId))
+export function useVisited(destinationId: string, env?: string) {
+  const [visited, setVisited] = useState<string[]>(() => loadVisited(destinationId, env))
   const visitedSet = useMemo(() => new Set(visited), [visited])
+
+  useEffect(() => {
+    setVisited(loadVisited(destinationId, env))
+  }, [destinationId, env])
 
   const isVisited = useCallback((id: string) => visitedSet.has(id), [visitedSet])
 
@@ -23,11 +27,11 @@ export function useVisited(destinationId: string) {
     (id: string) => {
       setVisited((prev) => {
         const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-        localStorage.setItem(storageKey(destinationId), JSON.stringify(next))
+        localStorage.setItem(storageKey(destinationId, env), JSON.stringify(next))
         return next
       })
     },
-    [destinationId],
+    [destinationId, env],
   )
 
   return { visited, isVisited, toggleVisited }

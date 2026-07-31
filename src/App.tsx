@@ -24,9 +24,11 @@ const categories = Array.from(new Set(destination.places.map((p) => p.category))
 )
 
 export default function App() {
-  const { isFav, toggleFav } = useFavorites(destination.id)
-  const { isVisited, toggleVisited } = useVisited(destination.id)
-  const { routeOrder, routeIndex, isInRoute, toggleRoute, clearRoute } = useRoute(destination.id)
+  const [env, setEnv] = useState<string>(() => localStorage.getItem('env:selected') || '')
+
+  const { isFav, toggleFav } = useFavorites(destination.id, env)
+  const { isVisited, toggleVisited } = useVisited(destination.id, env)
+  const { routeOrder, routeIndex, isInRoute, toggleRoute, clearRoute } = useRoute(destination.id, env)
   const [viewMode, setViewMode] = useState<ViewMode>('all')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [hiddenZones, setHiddenZones] = useState<number[]>([])
@@ -91,6 +93,12 @@ export default function App() {
         categories={categories}
         selectedCategories={selectedCategories}
         onSelectedCategoriesChange={setSelectedCategories}
+        destinationId={destination.id}
+        env={env}
+        onEnvChange={(v: string) => {
+          localStorage.setItem('env:selected', v)
+          setEnv(v)
+        }}
       />
       <Legend
         zones={destination.zones}
