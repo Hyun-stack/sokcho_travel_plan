@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Place } from '../types'
 import {
   categoryEmoji,
@@ -47,7 +46,6 @@ export default function Toolbar({
   env,
   onEnvChange,
 }: ToolbarProps) {
-  const [show, setShow] = useState(false)
 
   return (
     <div className="map-topbar">
