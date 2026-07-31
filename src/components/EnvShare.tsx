@@ -13,6 +13,36 @@ function keysFor(destinationId: string, env?: string) {
   return { favKey, routeKey, visitedKey }
 }
 
+function getExistingEnvs(destinationId: string): string[] {
+  const envSet = new Set<string>()
+
+  // 1. 등록된 환경 목록 로드
+  try {
+    const savedList = JSON.parse(localStorage.getItem(`env:list:${destinationId}`) || '[]')
+    if (Array.isArray(savedList)) {
+      savedList.forEach((e) => {
+        if (typeof e === 'string' && e.trim()) envSet.add(e.trim())
+      })
+    }
+  } catch {}
+
+  // 2. LocalStorage 스캔하여 등록되지 않은 환경 자동 감지 (하위 호환성 및 데이터 안정성용)
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key) {
+      const parts = key.split(':')
+      if (parts[0] === 'env' && parts.length >= 4) {
+        const destId = parts.slice(3).join(':')
+        if (destId === destinationId) {
+          envSet.add(parts[1])
+        }
+      }
+    }
+  }
+
+  return Array.from(envSet).sort()
+}
+
 function getStats(destinationId: string, env: string) {
   const { favKey, routeKey, visitedKey } = keysFor(destinationId, env)
   let favCount = 0
@@ -33,7 +63,8 @@ function getStats(destinationId: string, env: string) {
 export default function EnvShare({ destinationId, env, onEnvChange }: EnvShareProps) {
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'settings' | 'import'>('settings')
-  const [envInput, setEnvInput] = useState(env)
+  const [envInput, setEnvInput] = useState('')
+  const [envList, setEnvList] = useState<string[]>(() => getExistingEnvs(destinationId))
   const [exportText, setExportText] = useState('')
   const [showJson, setShowJson] = useState(false)
   const [importText, setImportText] = useState('')
@@ -41,12 +72,7 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
   
   const rootRef = useRef<HTMLDivElement>(null)
 
-  // Sync envInput with env prop when it changes
-  useEffect(() => {
-    setEnvInput(env)
-  }, [env])
-
-  // Click outside to close dropdown
+  // 바깥 영역 클릭 시 드롭다운 닫기
   useEffect(() => {
     if (!open) return
     function handleOutside(e: MouseEvent) {
@@ -58,15 +84,91 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
     return () => document.removeEventListener('mousedown', handleOutside)
   }, [open])
 
-  // Clear feedback when switching tabs or closing
+  // 탭 전환 또는 닫힐 때 피드백 초기화
   useEffect(() => {
     setFeedback(null)
     setExportText('')
     setShowJson(false)
-  }, [activeTab, open])
+    setImportText('')
+    setEnvInput('')
+    // 목록 새로고침
+    setEnvList(getExistingEnvs(destinationId))
+  }, [activeTab, open, destinationId])
 
   const stats = getStats(destinationId, env)
 
+  // 환경 추가 (저장 및 환경 등록 용도)
+  function handleAddEnv() {
+    const trimmed = envInput.trim()
+    if (!trimmed) {
+      setFeedback({ type: 'error', msg: '추가할 환경 이름을 입력해주세요.' })
+      return
+    }
+    if (trimmed.includes(':')) {
+      setFeedback({ type: 'error', msg: '환경 이름에 콜론(:) 문자는 포함할 수 없습니다.' })
+      return
+    }
+    
+    // 목록 업데이트 및 등록
+    const currentList = getExistingEnvs(destinationId)
+    if (!currentList.includes(trimmed)) {
+      const updatedList = [...currentList, trimmed].sort()
+      localStorage.setItem(`env:list:${destinationId}`, JSON.stringify(updatedList))
+      setEnvList(updatedList)
+    }
+
+    setFeedback({ type: 'success', msg: `'${trimmed}' 환경이 생성되었습니다. 활성화하는 중...` })
+    setEnvInput('')
+    
+    // 바로 활성화 처리 및 새로고침
+    onEnvChange(trimmed)
+    setTimeout(() => {
+      window.location.reload()
+    }, 800)
+  }
+
+  // 환경 전환
+  function handleSwitchEnv(name: string) {
+    if (name === env) return
+    onEnvChange(name)
+    setFeedback({ type: 'success', msg: `'${name || '기본값'}' 환경으로 전환합니다. 새로고침 중...` })
+    setTimeout(() => {
+      window.location.reload()
+    }, 500)
+  }
+
+  // 환경 데이터 삭제
+  function handleDeleteEnv(name: string, e: React.MouseEvent) {
+    e.stopPropagation() // 부모 클릭 전파 방지
+    if (!name) return
+
+    const confirmDelete = window.confirm(`'${name}' 환경의 모든 데이터(즐겨찾기, 경로, 방문 표시)가 영구적으로 삭제됩니다. 정말 삭제하시겠습니까?`)
+    if (!confirmDelete) return
+
+    const { favKey, routeKey, visitedKey } = keysFor(destinationId, name)
+    localStorage.removeItem(favKey)
+    localStorage.removeItem(routeKey)
+    localStorage.removeItem(visitedKey)
+
+    // 등록 목록에서 제거
+    const currentList = getExistingEnvs(destinationId)
+    const updatedList = currentList.filter(item => item !== name)
+    localStorage.setItem(`env:list:${destinationId}`, JSON.stringify(updatedList))
+    setEnvList(updatedList)
+
+    // 만약 현재 활성화된 환경을 삭제했다면 기본 환경으로 전환
+    if (env === name) {
+      onEnvChange('')
+      setFeedback({ type: 'success', msg: `'${name}' 환경이 삭제되었습니다. 기본 환경으로 복귀하여 새로고침합니다.` })
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+    } else {
+      setFeedback({ type: 'success', msg: `'${name}' 환경 데이터가 삭제되었습니다.` })
+    }
+  }
+
+  // 내보내기
   function doExport() {
     const { favKey, routeKey, visitedKey } = keysFor(destinationId, env)
     let favs: string[] = []
@@ -95,6 +197,7 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
     }
   }
 
+  // 가져오기
   function doImport(applyOverwrite: boolean) {
     if (!importText.trim()) {
       setFeedback({ type: 'error', msg: '가져올 JSON 데이터를 입력해주세요.' })
@@ -114,7 +217,7 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
         localStorage.setItem(target.routeKey, JSON.stringify(route))
         localStorage.setItem(target.visitedKey, JSON.stringify(visited))
       } else {
-        // merge: read existing then union
+        // 병합 (기존 데이터와 합치기)
         try {
           const existingFavs = JSON.parse(localStorage.getItem(target.favKey) || '[]')
           const mergedFavs = Array.from(new Set([...(existingFavs || []), ...favs]))
@@ -131,6 +234,15 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
           localStorage.setItem(target.visitedKey, JSON.stringify(mergedVisited))
         } catch {}
       }
+
+      // 가져온 타겟 환경명을 목록에도 등록
+      if (targetEnv) {
+        const currentList = getExistingEnvs(destinationId)
+        if (!currentList.includes(targetEnv)) {
+          const updatedList = [...currentList, targetEnv].sort()
+          localStorage.setItem(`env:list:${destinationId}`, JSON.stringify(updatedList))
+        }
+      }
       
       setFeedback({ type: 'success', msg: '데이터를 성공적으로 가져왔습니다. 잠시 후 새로고침됩니다.' })
       onEnvChange(targetEnv)
@@ -143,17 +255,12 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
     }
   }
 
-  function handleSaveEnv() {
-    onEnvChange(envInput)
-    setFeedback({ type: 'success', msg: `환경 이름이 '${envInput || '기본'}'(으)로 변경되었습니다.` })
-  }
-
   return (
     <div className="env-share" ref={rootRef}>
       <button
         type="button"
         className={`tb-btn ${env ? 'on' : ''}`}
-        title={`환경 공유 (현재: ${env || '기본'})`}
+        title={`환경 공유 및 선택 (현재: ${env || '기본'})`}
         onClick={() => setOpen((s) => !s)}
       >
         🌐
@@ -162,7 +269,7 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
       {open && (
         <div className="env-share-dropdown">
           <div className="env-share-header">
-            <h3>⚙️ 여행 환경 설정 및 공유</h3>
+            <h3>🌐 여행 환경 관리 및 선택</h3>
             <button type="button" className="env-share-close" onClick={() => setOpen(false)} title="닫기">
               ✕
             </button>
@@ -174,7 +281,7 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
               className={`env-share-tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
               onClick={() => setActiveTab('settings')}
             >
-              ⚙️ 설정 & 내보내기
+              ⚙️ 환경 선택 & 관리
             </button>
             <button
               type="button"
@@ -189,27 +296,58 @@ export default function EnvShare({ destinationId, env, onEnvChange }: EnvSharePr
             <div className="env-share-tab-content">
               {/* Active environment status */}
               <div className="env-badge-container">
-                <span className="env-badge-label">현재 활성화된 환경</span>
+                <span className="env-badge-label">현재 선택된 환경</span>
                 <span className="env-badge-value">{env || '기본값'}</span>
               </div>
 
-              {/* Env name modification */}
+              {/* Environment List Selection */}
               <div className="env-section">
-                <span className="env-section-title">환경 이름 지정</span>
+                <span className="env-section-title">목록에서 환경 선택</span>
+                <div className="env-list">
+                  {/* Default environment */}
+                  <div className={`env-list-item ${env === '' ? 'active' : ''}`} onClick={() => handleSwitchEnv('')}>
+                    <span className="env-item-name">🌐 기본값 (Default)</span>
+                    {env === '' && <span className="env-item-badge">활성</span>}
+                  </div>
+                  {/* Custom environments */}
+                  {envList.map((name) => (
+                    <div
+                      key={name}
+                      className={`env-list-item ${env === name ? 'active' : ''}`}
+                      onClick={() => handleSwitchEnv(name)}
+                    >
+                      <span className="env-item-name" title={name}>📁 {name}</span>
+                      {env === name ? (
+                        <span className="env-item-badge">활성</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="env-item-delete"
+                          onClick={(e) => handleDeleteEnv(name, e)}
+                          title="이 환경의 모든 데이터 삭제"
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Add New Environment */}
+              <div className="env-section" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
+                <span className="env-section-title">새 환경 생성 및 저장</span>
                 <div className="env-input-group">
                   <input
                     type="text"
-                    placeholder="예: sokcho-trip-1"
+                    placeholder="새 환경 이름 입력..."
                     value={envInput}
                     onChange={(e) => setEnvInput(e.target.value)}
                   />
-                  <button type="button" className="env-btn env-btn-primary env-btn-sm" onClick={handleSaveEnv}>
-                    설정
+                  <button type="button" className="env-btn env-btn-primary env-btn-sm" onClick={handleAddEnv}>
+                    생성
                   </button>
                 </div>
-                <span className="env-info-text">
-                  서로 다른 환경명을 사용해 여러 개의 여행 계획(즐겨찾기, 경로 등)을 분리하여 관리할 수 있습니다.
-                </span>
               </div>
 
               {/* Export */}
